@@ -1,5 +1,6 @@
 # cmd4-HisenseTV
 Shell script to integrate Hisense TVs using the RemoteNOW app with Homebridge through the homebridge-cmd4 plug-in.
+Forked from mitch7391/cmd4-HisenseTV because my TV requires SSL certs to be passed in the commandline.
 
 <h3 align="center">
   <img src="https://github.com/mitch7391/cmd4-HisenseTV/blob/main/Screenshots/HisenseTV.PNG">

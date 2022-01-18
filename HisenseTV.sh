@@ -1,16 +1,23 @@
 #!/bin/bash
 
 # IP Address of TV (go to TV settings to find this).
-ip="192.168.0.156"
+ip="192.168.1.32"
 
 # MAC Address of the TV (go to TV settings to find this).
-tvMAC="7C:B3:7B:76:77:D4"
+tvMAC="18:30:0C:FC:D1:8B"
 
 # MAC Address of device paired to the TV through the RemoteNOW app.
-pairedMAC="8C:84:01:20:57:18"
+pairedMAC="3D:81:F2:B6:08:B0"
 
 # File path of saved Hisense Certificate.
 certPath="/home/pi/hisense.crt"
+
+# File path of saved RCM Hisense Certificate .CER file.
+rcmCer="/home/pi/rcm_certchain_pem.cer"
+
+# File path of saved key Hisense Certificate .PKCs8 file.
+rcmKey="/home/pi/rcm_pem_privkey.pkcs8"
+
 
 if [ "$1" = "Get" ]; then
   case "$3" in
@@ -38,14 +45,15 @@ if [ "$1" = "Get" ]; then
      # ActiveIdentifier is used to return what input source the TV is using.
         if [ "$(timeout 2 /bin/bash -c "(echo > /dev/tcp/$ip/36669)" > /dev/null 2>&1 && echo 1 || echo 0)"  = '1' ]; then
 
-         stateType=$(mosquitto_sub --cafile $certPath --tls-version tlsv1.2 --insecure -W 1 -h $ip -p 36669 -P multimqttservice -u hisenseservice -t /remoteapp/mobile/broadcast/ui_service/state | jq '.statetype')
+
+         stateType=$(mosquitto_sub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -W 1 -h $ip -p 36669 -P multimqttservice -u hisenseservice -t /remoteapp/mobile/broadcast/ui_service/state | jq '.statetype')
          case "$stateType" in
 	    '"livetv"' )
                       stdbuf -o0 -e0 echo 0
             ;;
 
             '"sourceswitch"' )
-                 sourceID=$(mosquitto_sub --cafile $certPath --tls-version tlsv1.2 --insecure -W 1 -h $ip -p 36669 -P multimqttservice -u hisenseservice -t /remoteapp/mobile/broadcast/ui_service/state | jq '.sourceid')
+                 sourceID=$(mosquitto_sub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -W 1 -h $ip -p 36669 -P multimqttservice -u hisenseservice -t /remoteapp/mobile/broadcast/ui_service/state | jq '.sourceid')
                  case "$sourceID" in
 
                     '"HDMI1"' )
@@ -67,7 +75,7 @@ if [ "$1" = "Get" ]; then
               ;;
 
               '"app"' )
-                 name=$(mosquitto_sub --cafile $certPath --tls-version tlsv1.2 --insecure -W 1 -h $ip -p 36669 -P multimqttservice -u hisenseservice -t /remoteapp/mobile/broadcast/ui_service/state | jq '.name')
+                 name=$(mosquitto_sub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -W 1 -h $ip -p 36669 -P multimqttservice -u hisenseservice -t /remoteapp/mobile/broadcast/ui_service/state | jq '.name')
                  case "$name" in
 
                     '"netflix"' )
@@ -118,15 +126,7 @@ if [ "$1" = "Get" ]; then
                     '"TV Browser"' )
                              stdbuf -o0 -e0 echo 21
                     ;;
-                    '"SHOWMAX"' )
-                             stdbuf -o0 -e0 echo 22
-                    ;;
-                    '"Migu TV"' )
-                             stdbuf -o0 -e0 echo 23
-                    ;;
-                    '"NiHao TV"' )
-                             stdbuf -o0 -e0 echo 24
-                    ;;
+                            
                   esac
               ;;
             esac
@@ -149,7 +149,7 @@ if [ "$1" = "Set" ]; then
 
       else
         #TV can turn off using MQTT
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_POWER"
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey   --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_POWER"
       fi
     ;;
 
@@ -158,137 +158,131 @@ if [ "$1" = "Set" ]; then
       case "$4" in
         #TV
         0 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/changesource" -m '{"sourceid":"0","sourcename":"TV"}'
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey   --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/changesource" -m '{"sourceid":"0","sourcename":"TV"}'
         ;;
 
         #HDMI1
         1 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/changesource" -m '{"sourceid":"4","sourcename":"HDMI1"}'
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey  --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/changesource" -m '{"sourceid":"4","sourcename":"HDMI1"}'
         ;;
 
 	#HDMI2
         2 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/changesource" -m '{"sourceid":"5","sourcename":"HDMI2"}'
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey  --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/changesource" -m '{"sourceid":"5","sourcename":"HDMI2"}'
         ;;
 
 	#HDMI3
         3 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/changesource" -m '{"sourceid":"6","sourcename":"HDMI3"}'
-        ;;
-
-	#HDMI4
-        4 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/changesource" -m '{"sourceid":"7","sourcename":"HDMI4"}'
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/changesource" -m '{"sourceid":"6","sourcename":"HDMI3"}'
         ;;
 
 	#AV
         5 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/changesource" -m '{"sourceid":"1","sourcename":"AV"}'
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/changesource" -m '{"sourceid":"1","sourcename":"AV"}'
         ;;
 
         #Netflix
         6 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/launchapp" -m '{"name":"Netflix","urlType":37,"storeType":0,"url":"netflix"}'
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/launchapp" -m '{"name":"Netflix","urlType":37,"storeType":0,"url":"netflix"}'
         ;;
 
         #PrimeVideo
         7 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/launchapp" -m '{"name":"Amazon","urlType":37,"storeType":0,"url":"amazon"}'
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/launchapp" -m '{"name":"Amazon","urlType":37,"storeType":0,"url":"amazon"}'
         ;;
 
         #YouTube
         8 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/launchapp" -m '{"name":"YouTube","urlType":37,"storeType":0,"url":"youtube"}'
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/launchapp" -m '{"name":"YouTube","urlType":37,"storeType":0,"url":"youtube"}'
         ;;
 
         #Foxtel
         9 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/launchapp" -m '{"name":"Amazon","urlType":37,"storeType":99,"url":"https://foxtel-go-sw.foxtelplayer.foxtel.com.au/foxtel-hisense19-300/"}'
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/launchapp" -m '{"name":"Amazon","urlType":37,"storeType":99,"url":"https://foxtel-go-sw.foxtelplayer.foxtel.com.au/foxtel-hisense19-300/"}'
         ;;
 
         #Stan
         10 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/launchapp" -m '{"name":"YouTube","urlType":37,"storeType":0,"url":"https://hisense.stan.app/6886/"}'
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/launchapp" -m '{"name":"YouTube","urlType":37,"storeType":0,"url":"https://hisense.stan.app/6886/"}'
         ;;
 
         #Plex
         11 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/launchapp" -m '{"name":"Plex","urlType":37,"storeType":0,"url":"http://plex.tv/web/tv/hisense"}'
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/launchapp" -m '{"name":"Plex","urlType":37,"storeType":0,"url":"http://plex.tv/web/tv/hisense"}'
         ;;
 
         #ABC iview
         12 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/changesource" -m '{"name":"ABC iview","urlType":37,"storeType":0,"url":"https://ctv.iview.abc.net.au/?device=hisense"}'
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/changesource" -m '{"name":"ABC iview","urlType":37,"storeType":0,"url":"https://ctv.iview.abc.net.au/?device=hisense"}'
         ;;
 
         #Youtube Kids
         13 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/changesource" -m '{"name":"Youtube Kids","urlType":37,"storeType":0,"url":"youtube_kids"}'
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/changesource" -m '{"name":"Youtube Kids","urlType":37,"storeType":0,"url":"youtube_kids"}'
         ;;
 
 	#SBS ON DEMAND
         14 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/changesource" -m '{"name":"SBS ON DEMAND","urlType":37,"storeType":0,"url":"http://sbsondemandctv.sbs.com.au/hisense/"}'
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/changesource" -m '{"name":"SBS ON DEMAND","urlType":37,"storeType":0,"url":"http://sbsondemandctv.sbs.com.au/hisense/"}'
         ;;
 
       	#AppsNow
         15 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/changesource" -m '{"name":"AppsNow","urlType":37,"storeType":99,"url":"appstore-hisense"}'
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/changesource" -m '{"name":"AppsNow","urlType":37,"storeType":99,"url":"appstore-hisense"}'
         ;;
 
       	#Kidoodle.TV
         16 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/changesource" -m '{"name":"Kidoodle.TV","urlType":37,"storeType":0,"url":"https://ctv-vidaa.kidoodle.tv"}'
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/changesource" -m '{"name":"Kidoodle.TV","urlType":37,"storeType":0,"url":"https://ctv-vidaa.kidoodle.tv"}'
         ;;
 
 	#Game Center
         17 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/changesource" -m '{"name":"Game Center","urlType":37,"storeType":0,"url":"http://apps.tvgam.es/tv_games/hisense_portal/production/portal/index.html"}'
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/changesource" -m '{"name":"Game Center","urlType":37,"storeType":0,"url":"http://apps.tvgam.es/tv_games/hisense_portal/production/portal/index.html"}'
         ;;
 
         #Toon Goggles
         18 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/launchapp" -m '{"name":"Toon Goggles","urlType":37,"storeType":0,"url":"http://html5.toongoggles.com/"}'
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/launchapp" -m '{"name":"Toon Goggles","urlType":37,"storeType":0,"url":"http://html5.toongoggles.com/"}'
         ;;
 
         #YuppTV
         19 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/launchapp" -m '{"name":"YuppTV","urlType":37,"storeType":0,"url":"http://www.yupptv.com/hisense/index.html"}'
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/launchapp" -m '{"name":"YuppTV","urlType":37,"storeType":0,"url":"http://www.yupptv.com/hisense/index.html"}'
         ;;
 
         #AccuWeather
         20 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/launchapp" -m '{"name":"AccuWeather","urlType":37,"storeType":0,"url":"accuweather"}'
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_MUTE"
         ;;
 
         #TV Browser
         21 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/launchapp" -m '{"name":"TV Browser","urlType":37,"storeType":99,"url":"browser"}'
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_MUTE"
         ;;
 
-        #SHOWMAX
+        #Channel9
         22 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/launchapp" -m '{"name":"SHOWMAX","urlType":37,"storeType":0,"url":"http://apps.showmax.com/Kieshoh7eiz9aeph0iewii1theephe"}'
-        ;;
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/3D:81:F2:B6:08:B0$normal/actions/changechannel" -m '{"channel_param" : "90#ch07fa526c-8c83-4547-8726-238b1fee4bf5#sl3d54bfff-ba0d-4f22-9cfd-b2686cd5cc4d#4"}'
+	    ;;
 
-        #Migu TV
+        #Channel10
         23 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/launchapp" -m '{"name":"Migu TV","urlType":37,"storeType":0,"url":"http://globalcdn.miguvideo.com:8088/TVh5/#/hisense"}'
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/3D:81:F2:B6:08:B0$normal/actions/changechannel" -m '{"channel_param" : "1#chf9037e9a-894e-4a08-8b9a-32f686320f23#sl3d54bfff-ba0d-4f22-9cfd-b2686cd5cc4d#4"}'
         ;;
 
-        #NiHao TV
+        #Channel7
         24 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/"$pairedMAC"$normal/actions/launchapp" -m '{"name":"NiHao TV","urlType":37,"storeType":0,"url":"http://hisense.h5.nihaotv.net"}'
+         mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/ui_service/3D:81:F2:B6:08:B0$normal/actions/changechannel" -m '{"channel_param" : "70#chb4f07a10-36ed-47a1-bd55-4803dd664e86#sl3d54bfff-ba0d-4f22-9cfd-b2686cd5cc4d#4"}'
         ;;
-
-      esac
+		esac
     ;;
 
     Mute )
       if [ "$4" = "true" ]; then
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_MUTE"
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_MUTE"
       else
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_MUTE"
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_MUTE"
       fi
     ;;
 
@@ -296,11 +290,11 @@ if [ "$1" = "Set" ]; then
       case "$4" in
         0 )
         # Volume up.
-         mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_VOLUMEUP"
+         mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_VOLUMEUP"
         ;;
         1 )
         # Volume down.
-         mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_VOLUMEDOWN"
+         mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_VOLUMEDOWN"
         ;;
       esac
     ;;
@@ -310,56 +304,56 @@ if [ "$1" = "Set" ]; then
       case "$4" in
         # Rewind.
         0 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_BACKS"
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_BACKS"
         ;;
         # Fast Forward.
         1 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_FORWARDS"
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_FORWARDS"
         ;;
         # Next Track.
         2 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_FORWARDS"
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_FORWARDS"
         ;;
         # Previous Track.
         3 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_BACKS"
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_BACKS"
         ;;
         # Arrow Up.
         4 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_UP"
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_CHANNELUP"
         ;;
         # Arrow Down.
         5 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_DOWN"
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_CHANNELDOWN"
         ;;
         # Arrow Left.
         6 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_LEFT"
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_VOLUMEDOWN"
         ;;
         # Arrow Right.
         7 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_RIGHT"
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_VOLUMEUP"
         ;;
         # Select.
         8 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_OK"
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_OK"
         ;;
         # Back.
         9 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_RETURNS"
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_RETURNS"
         ;;
         # Exit.
         10 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_EXIT"
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_EXIT"
         ;;
         # Play/Pause.
         11 )
-        mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_PLAY"
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_PLAY"
         ;;
         # Information.
-        #12 )
-        #mosquitto_pub --cafile $certPath --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t ""
-        #;;
+        15 )
+        mosquitto_pub --cafile $certPath --cert $rcmCer --key $rcmKey --insecure -h $ip -p 36669 -P multimqttservice -u hisenseservice -t "/remoteapp/tv/remote_service/"$pairedMAC"$normal/actions/sendkey" -m "KEY_MUTE"
+        ;;
 	esac
     ;;
 

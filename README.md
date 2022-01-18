@@ -45,7 +45,8 @@ qmierjfpaoisdjmçfaisldjcçfskdjafcaçskdjcçfmasidcf (etc. etc. etc)
 12. <B><I>OR</B></I> if you are less savvy like me, you can create the script in the homedrive of your raspberry pi using `sudo nano HisenseTV.sh` and pasting the contents inside, then saving. Its pathway will be `/home/pi/HisenseTV.sh`. <B><I>NOTE:</B></I> For HOOBS users this would create your shell scripts at the lcation: `/home/hoobs/.hoobs/HisenseTV.sh`.
 13. Install [homebridge-cmd4](https://github.com/ztalbot2000/homebridge-cmd4) plug-in through config-ui-x or via command: `sudo npm install -g --unsafe-perm homebridge-cmd4`. <B><I>NOTE:</B></I> you do not need to follow the extra installation steps on cmd4's page for this.
 14. Add to your Homebridge `config.json` file (easiest done through `homebridge-confi-ui-x` web UI); use the `config_sample.json` file. This file contains all potential input sources, personally I would only add the ones you use as there are 24. <B><I>NOTE:</B></I> do not change the values of `"identifier"` for each input source or they will no longer work.
-15. Restart Homebridge and all should be well... Unless you are me and everything I do goes wrong several times before it goes right haha.
+15. copy the 2 SSL certs to a path on your device (e.g /home/<user>certs) and update HisenseTV.sh to reflect this in parameters rcmCert and rcmKey and save it.
+16. Restart Homebridge and all should be well... Unless you are me and everything I do goes wrong several times before it goes right haha.
 
 ## Known Bug:
 The following Hisense TV Apps added as input sources do not seem to work:
